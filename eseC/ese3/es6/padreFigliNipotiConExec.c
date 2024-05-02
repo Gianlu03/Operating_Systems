@@ -51,12 +51,13 @@ int main (int argc, char** argv)
 
                 close(0); //ridirigo standard input su file passato come parametro
                 if(open(argv[i+1], O_RDONLY) < 0){
-                    printf("Errore Fin nipote %d di figlio %d\n", getpid(), getppid());
+                    printf("Errore File input nipote %d di figlio %d\n", getpid(), getppid());
                     exit(-1);
                 }
                 
                 close(1); //ridirigo standard output su file di output come richiesto
                 if(open(FOut, O_WRONLY | O_TRUNC) < 0){
+		    printf("Errore File output nipote %d di figlio %d\n", getpid(), getppid());
                     exit(-1);
                 }
 
