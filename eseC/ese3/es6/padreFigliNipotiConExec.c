@@ -49,13 +49,13 @@ int main (int argc, char** argv)
                 //il nipote esegue il sort sul file parametro, scrivendolo su fout
                 //ridirigo standard output su FOut, così che la sort scriva qui
 
-                close(0);
+                close(0); //ridirigo standard input su file passato come parametro
                 if(open(argv[i+1], O_RDONLY) < 0){
                     printf("Errore Fin nipote %d di figlio %d\n", getpid(), getppid());
                     exit(-1);
                 }
                 
-                close(1);
+                close(1); //ridirigo standard output su file di output come richiesto
                 if(open(FOut, O_WRONLY | O_TRUNC) < 0){
                     exit(-1);
                 }
