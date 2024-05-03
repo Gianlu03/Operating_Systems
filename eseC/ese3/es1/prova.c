@@ -18,6 +18,9 @@ int main (int argc, char* argv[])
 
     if(input != '0'){
         execl("/home/gian/Desktop/Operating_Systems/eseC/ese3/es1/main", "main", (char*)0);
+
+        printf("Errore Exec\n");
+        exit(1);
     }
 
 	exit(0);
