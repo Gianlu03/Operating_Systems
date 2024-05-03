@@ -36,7 +36,7 @@ int main (int argc, char** argv)
 			exit(-1);
 		}
         /* errore 2 = 254*/
-		execl("/home/gian/Desktop/Operating_Systems/eseC/ese3/es5/mycat", "mycat", (char *)0); //richiamo mycat senza parametri perchè il file è aperto in 0
+		execl("mycat", "mycat", (char *)0); //richiamo mycat senza parametri perchè il file è aperto in 0
 
  		/* si esegue l'istruzione seguente SOLO in caso di fallimento della execlp */
 		/* ATTENZIONE SE LA EXEC FALLISCE NON HA SENSO FARE printf("Errore in execlp\n"); DATO CHE LO STANDARD OUTPUT E' RIDIRETTO SU /dev/null */
