@@ -10,95 +10,128 @@
 
 int main (int argc, char** argv)
 {
-    int pid, pid2;        			/* per fork */
+    int fd;
+    int pid;        			/* per fork */
     int pidFiglio, status, ritorno;     /* per wait padre */
-    int pidNipote, status2, ritorno2;   /* per wait figlio*/
 
+    int N = argc - 1; //memorizzo come richiesto numero parametri in variabile N  (senza nome programma)
     /* controlliamo che si passino almeno 3 parametri */ 
-	if (argc-1 < 3)
+	if (N < 3)
 	{
-        printf("Errore nel numero di parametri che devono essere almeno 3(nomi dei file)");
+        printf("Errore nel numero di parametri che devono essere almeno 3(forniti %d parametri)\n", N);
         exit(1);	
 	}
 
 	/* genero un processo figlio per ogni file fornito come parametro */
-    for(int i = 0; i < argc-1; i++){
+    for(int i = 0; i < N; i++){
         if ((pid = fork()) < 0)
         {	/* fork fallita */
             printf("Errore in fork\n");
             exit(2);
         }
 
-        if (pid == 0)
-        { 	/* figlio */
-            char* FOut = malloc(sizeof(char) * 255);
-            strcpy(FOut, argv[i+1]);
-            strcat(FOut, ".sort");
-            if ((pid2 = fork()) < 0)
-            {	/* fork fallita */
-                printf("Errore in fork nipoti\n");
-                exit(2);
-            }
+        if (pid == 0) /* CODICE FIGLIO*/
+        { 	
+            /* Creo nome file output concatenando .sort*/
+            char* FOut = malloc(sizeof(char) * ((strlen(argv[i+1]) + 6)));
 
-            if(pid2 == 0){
-                /* codice nipote */
-                if(creat(FOut, PERM) < 0){
-                    printf("Errore creat nipote %d di figlio %d", getpid(), getppid());
-                    exit(-1);
-                }
-                //il nipote esegue il sort sul file parametro, scrivendolo su fout
-                //ridirigo standard output su FOut, così che la sort scriva qui
-
-                close(0); //ridirigo standard input su file passato come parametro
-                if(open(argv[i+1], O_RDONLY) < 0){
-                    printf("Errore File input nipote %d di figlio %d\n", getpid(), getppid());
-                    exit(-1);
-                }
-                
-                close(1); //ridirigo standard output su file di output come richiesto
-                if(open(FOut, O_WRONLY | O_TRUNC) < 0){
-		    printf("Errore File output nipote %d di figlio %d\n", getpid(), getppid());
-                    exit(-1);
-                }
-
-                execlp("sort", "sort", (char*)0);
-                
-                //qui arriva solo con errore di exec
-                printf("Errore execlp\n");
+            if(FOut == NULL){ /* controllo che malloc sia andata a buon fine*/
+                printf("Errore nelle malloc di FOut\n");
                 exit(-1);
             }
 
-            if ((pidNipote=wait(&status2)) < 0)
-            {
-                    printf("Errore wait figlio\n");
-                    exit(3);
-            }
-            if ((status2 & 0xFF) != 0)
-                    printf("Nipote con pid %d dal figlio %d terminato in modo anomalo\n", getpid(), pidNipote);
-            else
-            {	
-                ritorno2=(int)((status2 >> 8) & 0xFF);
-                if(ritorno2 == 255)
-                    printf("Nipote di figlio %d ha ritornato -1\n", getpid());
-                free(FOut);
-                exit(ritorno2);
-            }
-        }
+            strcpy(FOut, argv[i+1]); //Strcpy necessaria per avere una copia separata della stringa
+            strcat(FOut, ".sort"); //concateno .sort a FOut
 
-        /* padre aspetta subito il figlio appunto perche' deve simulare la shell e la esecuzione in foreground! */		
-        if ((pidFiglio=wait(&status)) < 0)
-        {
-                printf("Errore wait\n");
-                exit(3);
+            //Creo file .sort, se già esistente viene azzerato (controllo anche se creato con successo)
+            if((fd = creat(FOut, PERM)) < 0){
+                printf("Errore creazione di %s\n", FOut);
+                exit(-1);
+            }
+            /*Chiusura file in quanto verrà aperto in seguito in posizione 1 della tabella dei file*/
+            close(fd);  /* Se lo si lasciasse occuperebbe 2 righe della tabella */
+            
+            /*Creo nipote*/
+            if ((pid = fork()) < 0)
+            {	/* fork fallita */
+                printf("Errore in fork per generare nipote\n");
+                exit(2);
+            }
+
+            if(pid == 0){ /* CODICE NIPOTE */
+                /*ridirigo standard input per usare comando filtro*/
+                close(0);
+                if(open(argv[i+1], O_RDONLY) < 0){ /* Controllo se aperto correttamente*/
+                    printf("Errore File %s in lettura \n", argv[i+1]);
+                    unlink(FOut); //in caso di problemi elimino file.sort
+                    exit(-1);
+                }
+                
+                //ridirigo standard output per scrivere su FOut al posto di linea di comando
+                close(1);
+                if(open(FOut, O_WRONLY) < 0){ //dopo la creat è sufficiente aprire in lettura, è già troncato
+                    printf("Errore file %s in scrittura\n", FOut);
+                    unlink(FOut); //in caso di problemi elimino file.sort
+                    exit(-1);
+                }
+
+                /*Eseguo comando filtro sort*/
+                execlp("sort", "sort", (char*)0);
+                
+                //Solo in caso di errore di Execlp si giunge a questo errore
+                perror("Errore Exec del sort nel nipote\n");
+                exit(-1);
+            }
+
+            /*fine nipote, ora il figlio attende il ritorno del nipote che ha creato */
+            if ((pid = wait(&status)) < 0)
+            {   /*errore wait*/
+                printf("Errore wait(figlio)\n");
+                exit(-1);
+            }
+            if ((status & 0xFF) != 0){ /* terminazione anomala nipote*/
+                printf("nipote con pid %d terminato in modo anomalo\n", pid);
+                exit(-1);
+            }
+            else
+            {	/* terminazione corretta*/
+                ritorno=(int)((status >> 8) & 0xFF);
+                exit(ritorno); //il figlio riporta il valore del nipote al padre
+            }	
+        }  /*FINE CODICE FIGLIO */    
+    } /* FINE CICLO CREAZIONE */
+
+    /* FASE DI ATTESA DEL PADRE*/
+    for(int i = 0; i < N; i++){
+        if ((pidFiglio = wait(&status)) < 0)
+        {   /*errore wait*/
+            printf("Errore wait padre\n");
+            exit(3);
         }
-        if ((status & 0xFF) != 0)
-                printf("Figlio con pid %d terminato in modo anomalo\n", pidFiglio);
+        if ((status & 0xFF) != 0) /* terminazione anomala */
+            printf("figlio con pid %d terminato in modo anomalo\n", pidFiglio);
         else
-        {	
+        {	/* terminazione corretta*/
             ritorno=(int)((status >> 8) & 0xFF);
-            printf("Figlio con pid %d ha ritornato %d(255 problemi!)\n", pidFiglio, ritorno);
+            printf("Il figlio di pid = %d ha ritornato %d (255 = problema)\n", pidFiglio, ritorno);
         }	
-    }
-    
+    } /* FINE CICLO ATTESA PADRE */
+
 	exit(0);
 }
+
+
+
+
+/* NOTE:
+    TUTTI GLI ERRORI AL DI SOTTO DEL LIVELLO DEL PADRE SONO INDICATI CON -1, COSÌ CHE
+    VENGA RITORNATO 255 (PROBLEMA)
+
+    GLI ERRORI NEL PADRE NUMERATI IN MODO INCREMENTALE
+
+    UTILIZZA COMMENTI PER INDICARE A COSA SI RIFERISCONO LE GRAFFE
+
+    EFFETTUARE SEMPRE CONTROLLO MALLOC == NULL
+
+    PER NIPOTI NON E' NECESSARIO PREPARARE ULTERIORI VARIABILI PER RITORNO NIPOTI E FORK
+*/
