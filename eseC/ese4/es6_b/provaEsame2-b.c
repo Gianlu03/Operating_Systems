@@ -9,13 +9,18 @@
 
 typedef int pipe_t[2];
 
+struct ritorno{
+    long int conteggio;
+    char Cf;
+};
+
 int main (int argc, char **argv)
 {   
     int fd; /* Variabile per file descriptor del singolo file*/
     int pid; /* Variabile per ritorno fork()*/
     int pidFiglio, status, ritorno; /* Variabili per Wait */
     int N = argc-2; /* N = numero caratteri*/
-    pipe_t *piped;
+    pipe_t piped;
     char* usage = "USAGE: ./main filename Cf1 Cf2 ...\n"; /* Stringa da stampare in caso di errore dell'utente*/
 
     /* Controllo numero parametri lasco: almeno 3 parametri*/
@@ -39,21 +44,12 @@ int main (int argc, char **argv)
 
     printf("DEBUG: numero parametri corretto\n\n");
 
-    piped = (pipe_t *) malloc (N*sizeof(pipe_t));
-    if (piped == NULL)
-    { 
-        printf("Errore nella allocazione della memoria\n");
-        exit(3); 
+    /* Creo una pipe singola */
+    if(pipe(piped) < 0){
+        printf("Errore creazione piped\n");
+        exit(4);
     }
-
-
-    /* Creo una pipe per ogni file (N) */
-    for(int i = 0; i < N; i++){
-        if(pipe(piped[i]) < 0){
-            printf("Errore creazione piped[%d]\n", i);
-            exit(4);
-        }
-    }
+    
 
     /*CREAZIONE FIGLI*/
     for(int i = 0; i < N; i++){
@@ -64,6 +60,13 @@ int main (int argc, char **argv)
 
         if(pid == 0){
             /*CODICE FIGLIO*/
+
+            /*Ogni figlio chiude pipe in lettura*/
+            close(piped[0]);
+
+            struct ritorno ret; /*istanza struct per ritornare dati al padre*/
+            ret.Cf = argv[i+2][0];
+            ret.conteggio = 0;
             
             if((fd = open(argv[1], O_RDONLY)) < 0){
                 printf("Impossibile aprire il file %s, controllare esistenza o diritti\n", argv[1]);
@@ -71,26 +74,17 @@ int main (int argc, char **argv)
                 exit(-1);
             }
 
-            /*Chiusura pipe*/
-            for (int k=0; k < N; k++)
-            {   /*chiuse tutte le pipe in lettura*/
-                close(piped[k][0]);
-                if (k != i)
-                    close(piped[k][1]); /* Ogni figlio chiude tutti i lati lettura tranne il proprio*/
-            }
-
-            long int contaOccorrenze = 0; /*Variabile per contare occorrenze*/
             char carLetto; /*Variabile buffer per contenere carattere letto*/
 
             /*Leggo contenuto file carattere per carattere*/
             while(read(fd, &carLetto, 1)){
                 if(carLetto == argv[i+2][0]) /*Se il carattere coincide con il parametro aumenta conteggio*/
-                    contaOccorrenze++;
+                    ret.conteggio++;
             }
             
             /*Scrivo su Pipe conteggio per inviarlo al padre*/
             //printf("DEBUG:Scrivo sulla pipe %d il conteggio %ld\n", i, contaOccorrenze);
-            write(piped[i][1], &contaOccorrenze, sizeof(contaOccorrenze));
+            write(piped[1], &ret, sizeof(ret));
 
             /*Una volta finito il figlio ritorna il proprio carattere*/
             exit(argv[i+2][0]);
@@ -98,17 +92,12 @@ int main (int argc, char **argv)
     }
 
     /*CODICE PADRE*/
-    for (int k=0; k < N; k++)
-    {   /*Padre chiude tutte le pipe in scrittura*/
-        close(piped[k][1]);
-    }
+    close(piped[1]);
+    struct ritorno ret;
 
-    /*Stampa caratteri e occorenze trovate*/
-    int index = 0; /*indice */
-    long int conteggio;
-    while(index < N && read(piped[index][0], &conteggio, sizeof(conteggio))){ /* Leggo il conteggio e lo associo al carattere di posizione index+2*/
-        printf("carattere %c: %ld occorrenze\n", argv[index+2][0], conteggio);
-        index++;
+    /*Stampa caratteri e occorenze trovate*/    
+    while(read(piped[0], &ret, sizeof(ret))){ /* Leggo il conteggio e lo associo al carattere di posizione index+2*/
+        printf("carattere %c: %ld occorrenze\n", ret.Cf, ret.conteggio);
     }
 
     /*ATTESA FIGLI*/
