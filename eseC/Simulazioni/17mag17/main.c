@@ -54,14 +54,14 @@ int main(int argc, char** argv){
     /*Alloco la memoria necessaria per l'array di pipe, allo stesso tempo controllo che avvenga con successo*/
     if((piped = malloc(sizeof(pipe_t)*N)) == NULL){ 
         printf("Si è verificato un errore nella malloc delle pipe\n");
-        exit(3);
+        exit(4);
     }
 
     /*Creo le pipe prima di effettuare fork*/
     for(int i = 0; i < N; i++){ /*Sono N perchè c'è anche tra ultimo figlio e padre*/
         if(pipe(piped[i]) < 0){
             printf("Si è verificato un errore nella creazione delle pipe\n");
-            exit(4);
+            exit(5);
         }
     }
 
@@ -70,7 +70,7 @@ int main(int argc, char** argv){
         /*Controllo che la fork vada a buon fine*/
         if((pid[i] = fork()) < 0){
             printf("Si è verificato un errore nella fork()\n");
-            exit(5);
+            exit(6);
         }
 
         /*Codice figli*/
@@ -149,7 +149,7 @@ int main(int argc, char** argv){
     /*Controllo che legga un numero di byte corretto*/
     if(read(piped[N-1][0], &mess, sizeof(mess)) != sizeof(mess)){
         printf("padre %d: Lettura errata in piped[%d]\n", getpid(), N-1);
-        exit(6);
+        exit(7);
     }
 
     printf("\n|Padre: Stampo i dati ricevuti riguardo al carattere '%c'|\n", Cx);
@@ -165,7 +165,7 @@ int main(int argc, char** argv){
     for(int i = 0; i < N; i++){
         if((pidFiglio = wait(&status)) < 0){
             printf("Errore wait\n");
-            exit(7);
+            exit(8);
         }
 
         if((status & 0xFF) != 0){

@@ -28,7 +28,7 @@ int main (int argc, char **argv)
         printf("Numero parametri errato: necessari almeno 3 parametri, inseriti %d\n", N+1);
         printf("%s", usage);
         exit(1);
-    }
+    }//controlla argc
 
     /* Controllo che i successivi parametri */
     for(int i = 2; i < argc; i++){
@@ -42,7 +42,7 @@ int main (int argc, char **argv)
 
     /*Il file viene controllato dai figli, in questo modo non si usa lo stesso fdi*/
 
-    printf("DEBUG: numero parametri corretto\n\n");
+    printf("DEBUG: numero parametri corretto\n\n"); //aggiungi %d N
 
     /* Creo una pipe singola */
     if(pipe(piped) < 0){
@@ -66,9 +66,9 @@ int main (int argc, char **argv)
 
             struct ritorno ret; /*istanza struct per ritornare dati al padre*/
             ret.Cf = argv[i+2][0];
-            ret.conteggio = 0;
+            ret.conteggio = 0L;
             
-            if((fd = open(argv[1], O_RDONLY)) < 0){
+            if((fd = open(argv[1], O_RDONLY)) < 0){ //controlla per primo
                 printf("Impossibile aprire il file %s, controllare esistenza o diritti\n", argv[1]);
                 printf("%s", usage);
                 exit(-1);
@@ -111,8 +111,8 @@ int main (int argc, char **argv)
             printf("Processo di pid = %d terminato in modo anomalo\n", pidFiglio);
         else{
             ritorno = (int)((status >> 8) & 0xFF);
-            printf("Il processo di pid = %d ha ritornato il carattere %c\n", pidFiglio, (char)ritorno);
-        }
+            printf("Il processo di pid = %d ha ritornato il carattere %c(255 problemi)\n", pidFiglio, (char)ritorno);
+        }                                           //stampa sia in carattere che decimale
     }
 
     exit(0);
