@@ -19,6 +19,12 @@ int mia_random(int n)
     return casuale;
 }
 
+/*handler*/
+void handler(int signo){
+    printf("Un figlio non ha aperto correttamente il file, termine programma\n");
+    //signal(signo, handler);
+}
+
 int main(int argc, char **argv)
 {
     srand(time(NULL));
@@ -58,7 +64,7 @@ int main(int argc, char **argv)
     int H = atoi(argv[argc - 1]); /*variabile che contiene lunghezza file*/
     int N = argc - 2;             /*Variabile per contenere numero file, ovvero il numero di figli necessari*/
 
-    if ((fileTemp = creat("creato", PERM)) < 0)
+    if ((fileTemp = open("creato", O_CREAT|O_WRONLY|O_TRUNC, PERM)) < 0)
     {
         printf("Impossibile creare il file /tmp/creato\n");
         exit(3);
@@ -96,6 +102,9 @@ int main(int argc, char **argv)
         exit(6);
     }
 
+    /*Installo gestore SIGPIPE: se un figlio termina il padre riceve questo segnale se comunica su pipe senza consumatore*/
+    signal(SIGPIPE, handler);
+
     /*=====================CODICE CREAZIONE FIGLI======================*/
     for (int i = 0; i < N; i++)
     {
@@ -123,8 +132,7 @@ int main(int argc, char **argv)
             /*Tento apertura file controllando se va a buon fine o meno*/
             if((fd = open(argv[i+1], O_RDONLY)) < 0){
                 printf("Errore apertura in lettura del file %s\n", argv[i+1]);
-                //kill(getppid(), SIGPIPE);
-                exit(-1);
+                exit(-1); /*Il padre riceverà SIGPIPE a causa della*/
             }
 
             /*Effettuo lettura carattere per carattere*/
