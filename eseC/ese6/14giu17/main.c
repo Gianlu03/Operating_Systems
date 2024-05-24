@@ -140,8 +140,8 @@ int main(int argc, char** argv){
             }
             /*Una volta terminato, il figlio invia -1 come posizione per indicare che è terminato*/
             posizione = -1L;
-            printf("Figlio %d ha finito\n", i);
-            write(pipeFiglioPadre[i][1], &posizione, 1); /*invio -1 in segno di termine*/
+
+            write(pipeFiglioPadre[i][1], &posizione, sizeof(long int)); /*invio -1 in segno di termine*/
             /*6- Il figlio termina ritornando le occorrenze modificate*/
             exit(contaModifiche);
         }
@@ -172,16 +172,15 @@ int main(int argc, char** argv){
                     printf("Si è verificato un problema nel padre leggendo la posizione dalla pipe[%d]\n", i);
                     exit(9);
                 }
-                printf("Ho ricevuto %ld", posizione);
                 /*Se il figlio ha inviato il valore di termine lo memorizzo come concluso e passo al figlio successivo*/
-                if(posizione == -1){
+                if(posizione < 0){
                     finito[i] = 1;
                     continue;
                 }
                 else{ /*Se non è concluso attuo le richieste del testo*/
                 /*1- Chiede ad utente quale carattere inserire*/
                     //char input[255];
-                    printf("Il figlio %i ha trovato '%c' in posizione %ld\n", i, Cx, posizione);
+                    printf("Il figlio %i ha trovato '%c' in posizione %ld nel file '%s'\n", i, Cx, posizione, argv[i+1]);
                     printf("Con quale carattere lo vuoi sostituire? \n");
                     read(0, &carLetto, 1);
                     if(carLetto != '\n')
