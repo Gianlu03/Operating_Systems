@@ -21,8 +21,9 @@ int mia_random(int n)
 
 /*handler*/
 void handler(int signo){
-    printf("Un figlio non ha aperto correttamente il file, termine programma\n");
-    //signal(signo, handler);
+    signal(SIGPIPE, SIG_IGN);
+    printf("SIGPIPE: Un figlio non ha aperto correttamente il file, termine programma\n");
+    exit(7);
 }
 
 int main(int argc, char **argv)
@@ -64,6 +65,9 @@ int main(int argc, char **argv)
     int H = atoi(argv[argc - 1]); /*variabile che contiene lunghezza file*/
     int N = argc - 2;             /*Variabile per contenere numero file, ovvero il numero di figli necessari*/
 
+    /*Installo gestore SIGPIPE: se un figlio termina il padre riceve questo segnale se comunica su pipe senza consumatore*/
+    signal(SIGPIPE, handler);
+
     if ((fileTemp = open("creato", O_CREAT|O_WRONLY|O_TRUNC, PERM)) < 0)
     {
         printf("Impossibile creare il file /tmp/creato\n");
@@ -102,8 +106,7 @@ int main(int argc, char **argv)
         exit(6);
     }
 
-    /*Installo gestore SIGPIPE: se un figlio termina il padre riceve questo segnale se comunica su pipe senza consumatore*/
-    signal(SIGPIPE, handler);
+    
 
     /*=====================CODICE CREAZIONE FIGLI======================*/
     for (int i = 0; i < N; i++)
@@ -131,7 +134,7 @@ int main(int argc, char **argv)
 
             /*Tento apertura file controllando se va a buon fine o meno*/
             if((fd = open(argv[i+1], O_RDONLY)) < 0){
-                printf("Errore apertura in lettura del file %s\n", argv[i+1]);
+                printf("Errore apertura in lettura del file %s nel figlio %d\n", argv[i+1], i);
                 exit(-1); /*Il padre riceverà SIGPIPE a causa della*/
             }
 
@@ -145,13 +148,13 @@ int main(int argc, char **argv)
                     
                     /*3- Il figlio invia la lunghezza della propria riga al padre*/
                     if(write(pipeFiglioPadre[i][1], &contaCaratteri, sizeof(int)) != sizeof(int)){
-                        printf("Errore write: scrittura intero fallita\n");
+                        printf("Errore write: scrittura intero fallita nel figlio %d\n", i);
                         exit(-1);
                     }
 
                     /*4- Attende e riceve l'indice del carattere da trascrivere sul file temporaneo dal padre (controlla lettura corretta)*/
                     if(read(pipePadreFiglio[i][0], &rispostaPadre, sizeof(int)) != sizeof(int)){
-                        printf("Errore, non è stato possibile leggere correttamente l'intero da pipe\n");
+                        printf("Errore, non è stato possibile leggere correttamente l'intero da pipe nel figlio %d\n", i);
                         exit(-1);
                     }
 
@@ -187,7 +190,6 @@ int main(int argc, char **argv)
             /*Padre riceve (controllando errori) tutti i conteggi svolti dai figli*/
             if(read(pipeFiglioPadre[i][0], &(contatori[i]), sizeof(int)) != sizeof(int)){
                 printf("Errore nella lettura dei conteggi nel padre\n");
-                sleep(4);
                 exit(7);
             }
         }
