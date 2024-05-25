@@ -17,7 +17,6 @@ void handler(int signo){
     exit(8);
 }
 
-
 int main(int argc, char** argv){
     /*====================================VARIABILI================================================*/
     
